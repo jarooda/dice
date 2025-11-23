@@ -1,13 +1,25 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import DiceBox from '@3d-dice/dice-box-threejs'
+import { useStorage } from '@vueuse/core'
+import RollLists from './components/RollLists.vue'
+import HistoryIcon from './components/icons/History.vue'
+import './styles/main.css'
 
 type DiceType = 4 | 6 | 8 | 10 | 12 | 20 | 100
+
+interface RollHistory {
+  type: string
+  rolls: number[]
+}
 
 const selectedDice = ref<DiceType>(6)
 const numberOfDice = ref<number>(1)
 const rollResults = ref<number[]>([])
 const isRolling = ref<boolean>(false)
+const rollHistory = useStorage<RollHistory[]>('dice-roll-history', [])
+const maxHistoryItems = 10
+const showHistoryModal = ref<boolean>(false)
 let diceBox: any = null
 
 const totalResult = computed(() => {
@@ -16,14 +28,20 @@ const totalResult = computed(() => {
 
 const resultDisplay = computed(() => {
   if (rollResults.value.length === 0) return ''
-  if (rollResults.value.length === 1) return rollResults.value[0].toString()
+  if (rollResults.value.length === 1) return rollResults.value[0]!.toString()
   return `${rollResults.value.join(' + ')} = ${totalResult.value}`
 })
+
+const getColorSet = (): string => {
+  const sets = ['acid', 'fire', 'ice', 'dragon', 'radiant', 'poison']
+  return sets[Math.floor(Math.random() * sets.length)] || 'acid'
+}
 
 onMounted(async () => {
   diceBox = new DiceBox('#dice-box', {
     sounds: false,
-    theme_colorset: 'white',
+    theme_texture: 'wood',
+    theme_colorset: getColorSet(),
     theme_material: 'plastic',
     onRollComplete: (results: any) => {
       // Extract rolls from the first set
@@ -32,6 +50,16 @@ onMounted(async () => {
       // Get the values directly - d100 already shows 10, 20, 30...100
       rollResults.value = rolls.map((r: any) => r.value)
       isRolling.value = false
+
+      // Save to history
+      const diceType = `${numberOfDice.value}d${selectedDice.value}`
+      const newRoll: RollHistory = {
+        type: diceType,
+        rolls: rollResults.value,
+      }
+
+      // Add to beginning of array and limit to maxHistoryItems
+      rollHistory.value = [newRoll, ...rollHistory.value].slice(0, maxHistoryItems)
     },
   })
 
@@ -43,6 +71,12 @@ const rollDice = () => {
 
   isRolling.value = true
   rollResults.value = []
+  const colorset = getColorSet()
+
+  // Randomize color set on every roll
+  diceBox.updateConfig({
+    theme_colorset: colorset,
+  })
 
   const diceType = `d${selectedDice.value}`
   const diceNotation = `${numberOfDice.value}${diceType}`
@@ -63,12 +97,31 @@ const dices = [
   { value: 20, label: 'D20' },
   { value: 100, label: 'D%' },
 ]
+
+const toggleHistoryModal = () => {
+  showHistoryModal.value = !showHistoryModal.value
+}
+
+const clearRollHistory = () => {
+  rollHistory.value = []
+}
 </script>
 
 <template>
   <div class="app-container">
     <div class="controls-section">
-      <h1 class="title">Dice Roller</h1>
+      <div class="header">
+        <h1 class="title">Dice Roller</h1>
+        <button
+          class="history-button"
+          @click="toggleHistoryModal"
+          :class="{ active: rollHistory.length > 0 }"
+          title="View Roll History"
+        >
+          <HistoryIcon />
+          <span v-if="rollHistory.length > 0" class="history-count">{{ rollHistory.length }}</span>
+        </button>
+      </div>
 
       <div class="control-group">
         <h2 class="control-title">Select Dice Type</h2>
@@ -110,286 +163,30 @@ const dices = [
       <span class="results-title">Results:</span>
       <span class="results-display">{{ resultDisplay || '-' }}</span>
     </div>
+
+    <!-- History Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showHistoryModal" class="modal-overlay" @click="toggleHistoryModal">
+          <div class="modal-content" @click.stop>
+            <div class="modal-header">
+              <h2 class="modal-title">Roll History</h2>
+              <button class="modal-close" @click="toggleHistoryModal">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"
+                  />
+                </svg>
+              </button>
+            </div>
+            <RollLists :history="rollHistory" @clear-history="clearRollHistory" />
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- 3D Dice Box Container -->
     <div id="dice-box"></div>
   </div>
 </template>
-
-<style scoped>
-* {
-  box-sizing: border-box;
-}
-
-.app-container {
-  height: 100vh;
-  background: #f7fafc;
-  padding: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  overflow: hidden;
-}
-
-.controls-section {
-  background: #ffffff;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
-}
-
-.title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  text-align: center;
-  margin: 0 0 0.75rem 0;
-  color: #1a202c;
-}
-
-.control-group {
-  margin-bottom: 0.75rem;
-}
-
-.control-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #4a5568;
-  margin: 0 0 0.5rem 0;
-}
-
-.dice-selector {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-  gap: 0.5rem;
-}
-
-.dice-option {
-  position: relative;
-  cursor: pointer;
-  user-select: none;
-}
-
-.dice-option input[type='radio'] {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.dice-label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem;
-  background: #f7fafc;
-  border: 2px solid #e2e8f0;
-  border-radius: 0.375rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: #2d3748;
-  transition: all 0.15s ease;
-  min-height: 40px;
-}
-
-.dice-option:hover .dice-label {
-  background: #edf2f7;
-  border-color: #cbd5e0;
-}
-
-.dice-option.active .dice-label {
-  background: #4299e1;
-  color: white;
-  border-color: #4299e1;
-}
-
-.number-selector {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-.number-option {
-  position: relative;
-  cursor: pointer;
-  user-select: none;
-}
-
-.number-option input[type='radio'] {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.number-label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  background: #f7fafc;
-  border: 2px solid #e2e8f0;
-  border-radius: 0.375rem;
-  font-weight: 600;
-  font-size: 1rem;
-  color: #2d3748;
-  transition: all 0.15s ease;
-}
-
-.number-option:hover .number-label {
-  background: #edf2f7;
-  border-color: #cbd5e0;
-}
-
-.number-option.active .number-label {
-  background: #4299e1;
-  color: white;
-  border-color: #4299e1;
-}
-
-.roll-button {
-  width: 100%;
-  padding: 0.75rem;
-  font-size: 1rem;
-  font-weight: 600;
-  background: #4299e1;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.roll-button:hover:not(:disabled) {
-  background: #3182ce;
-}
-
-.roll-button:active:not(:disabled) {
-  background: #2c5282;
-}
-
-.roll-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.results-section {
-  padding: 0.75rem;
-  background: #ffffff;
-  border-radius: 0.375rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.results-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #4a5568;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.results-display {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #4299e1;
-  font-family: 'Courier New', monospace;
-}
-
-#dice-box {
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-  background: #ffffff;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Mobile optimizations */
-@media (max-width: 640px) {
-  .app-container {
-    padding: 0.5rem;
-  }
-
-  .controls-section {
-    padding: 0.75rem;
-  }
-
-  .dice-selector {
-    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
-    gap: 0.375rem;
-  }
-
-  .dice-label {
-    padding: 0.375rem;
-    font-size: 0.8125rem;
-    min-height: 36px;
-  }
-
-  .number-label {
-    width: 36px;
-    height: 36px;
-    font-size: 0.875rem;
-  }
-
-  .roll-button {
-    padding: 0.625rem;
-    font-size: 0.9375rem;
-  }
-
-  #dice-box {
-    min-height: 200px;
-  }
-}
-
-/* Landscape mobile */
-@media (max-width: 900px) and (orientation: landscape) {
-  .app-container {
-    flex-direction: row;
-  }
-
-  .controls-section {
-    flex: 0 0 250px;
-    max-height: calc(100vh - 1rem);
-    overflow-y: auto;
-  }
-
-  #dice-box {
-    flex: 1;
-    min-height: auto;
-    height: calc(100vh - 1rem);
-  }
-}
-
-/* Touch device optimizations */
-@media (hover: none) and (pointer: coarse) {
-  .dice-option:hover .dice-label,
-  .number-option:hover .number-label {
-    transform: none;
-  }
-
-  .dice-option:active .dice-label {
-    transform: scale(0.95);
-  }
-
-  .number-option:active .number-label {
-    transform: scale(0.95);
-  }
-}
-</style>
