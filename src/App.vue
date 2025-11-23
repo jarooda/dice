@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import DiceBox from '@3d-dice/dice-box-threejs'
 import { useStorage } from '@vueuse/core'
+import confetti from 'canvas-confetti'
 import RollLists from './components/RollLists.vue'
 import HistoryIcon from './components/icons/History.vue'
 import './styles/main.css'
@@ -49,7 +50,58 @@ onMounted(async () => {
 
       // Get the values directly - d100 already shows 10, 20, 30...100
       rollResults.value = rolls.map((r: any) => r.value)
-      isRolling.value = false
+
+      // Check for max roll and trigger confetti celebration
+      const maxPossible = numberOfDice.value * selectedDice.value
+      const total = rollResults.value.reduce((sum, value) => sum + value, 0)
+      if (total === maxPossible) {
+        // Create 🎉 emoji shape
+        const scalar = 2
+        const party = confetti.shapeFromText({ text: '🎉', scalar })
+
+        // Fire confetti from multiple angles
+        const duration = 3000
+        const animationEnd = Date.now() + duration
+        const defaults = {
+          startVelocity: 30,
+          spread: 360,
+          ticks: 60,
+          zIndex: 9999,
+          shapes: [party],
+          scalar,
+        }
+
+        const randomInRange = (min: number, max: number) => {
+          return Math.random() * (max - min) + min
+        }
+
+        const interval = setInterval(() => {
+          const timeLeft = animationEnd - Date.now()
+
+          if (timeLeft <= 0) {
+            isRolling.value = false
+            return clearInterval(interval)
+          }
+
+          const particleCount = 50 * (timeLeft / duration)
+
+          // Fire confetti from left side
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+          })
+
+          // Fire confetti from right side
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+          })
+        }, 250)
+      } else {
+        isRolling.value = false
+      }
 
       // Save to history
       const diceType = `${numberOfDice.value}d${selectedDice.value}`
