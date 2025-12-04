@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import DiceBox from '@3d-dice/dice-box-threejs'
 import { useStorage } from '@vueuse/core'
+import { sample } from 'jalutils'
 import confetti from 'canvas-confetti'
 import RollLists from './components/RollLists.vue'
 import HistoryIcon from './components/icons/History.vue'
@@ -14,7 +15,7 @@ interface RollHistory {
   rolls: number[]
 }
 
-const selectedDice = ref<DiceType>(6)
+const selectedDice = ref<DiceType>(20)
 const numberOfDice = ref<number>(1)
 const rollResults = ref<number[]>([])
 const isRolling = ref<boolean>(false)
@@ -33,9 +34,18 @@ const resultDisplay = computed(() => {
   return `${rollResults.value.join(' + ')} = ${totalResult.value}`
 })
 
+const resultSuffix = computed(() => {
+  if (rollResults.value.length === 0) return ''
+  let suffix = ''
+  if (selectedDice.value === 100) {
+    suffix += '%'
+  }
+  return suffix
+})
+
 const getColorSet = (): string => {
   const sets = ['acid', 'fire', 'ice', 'dragon', 'radiant', 'poison']
-  return sets[Math.floor(Math.random() * sets.length)] || 'acid'
+  return sample(sets)!
 }
 
 onMounted(async () => {
@@ -213,7 +223,7 @@ const clearRollHistory = () => {
 
     <div class="results-section">
       <span class="results-title">Results:</span>
-      <span class="results-display">{{ resultDisplay || '-' }}</span>
+      <span class="results-display">{{ resultDisplay || '-' }}{{ resultSuffix }}</span>
     </div>
 
     <!-- History Modal -->

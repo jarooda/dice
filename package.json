@@ -19,6 +19,7 @@
     "@3d-dice/dice-box-threejs": "^0.0.12",
     "@vueuse/core": "^14.0.0",
     "canvas-confetti": "^1.9.4",
+    "jalutils": "^0.1.2",
     "vue": "^3.5.22"
   },
   "devDependencies": {

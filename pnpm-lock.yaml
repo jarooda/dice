@@ -17,6 +17,9 @@ importers:
       canvas-confetti:
         specifier: ^1.9.4
         version: 1.9.4
+      jalutils:
+        specifier: ^0.1.2
+        version: 0.1.2
       vue:
         specifier: ^3.5.22
         version: 3.5.24(typescript@5.9.3)
@@ -977,6 +980,9 @@ packages:
   isexe@3.1.1:
     resolution: {integrity: sha512-LpB/54B+/2J5hqQ7imZHfdU31OlgQqx7ZicVlkm9kzg9/w8GKLEcFfJl/t7DCEDueOyBAD6zCCwTO6Fzs0NoEQ==}
     engines: {node: '>=16'}
+
+  jalutils@0.1.2:
+    resolution: {integrity: sha512-UNphL0TEyAS9/pFR1YSu2r3t3dafcNT4zODSA/SOCLXbx0dtVU0NdncPqd+UnL3qjyepPUjEqZTJS7WGyjZZsQ==}
 
   jiti@2.6.1:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
@@ -2480,6 +2486,8 @@ snapshots:
   isexe@2.0.0: {}
 
   isexe@3.1.1: {}
+
+  jalutils@0.1.2: {}
 
   jiti@2.6.1: {}
 
